@@ -363,12 +363,19 @@ function canAccessConfig() {
 function canAccessAsignacion() {
     return currentUser && ['admin', 'encargado', 'asignador'].includes(currentUser.role);
 }
+function canAccessControl() {
+    return currentUser && ['admin', 'encargado', 'asignador'].includes(currentUser.role);
+}
 function canAccessDesmontador() {
     return currentUser && currentUser.role === 'desmontador';
 }
 function canCreateOrders() {
-    // Desmontadores no crean pedidos
     return currentUser && !['desmontador'].includes(currentUser.role);
+}
+
+// CDN helper
+function isCDN(order) {
+    return !!(order.rawText && order.rawText.toUpperCase().includes('CDN'));
 }
 
 // =====================================================
@@ -438,6 +445,8 @@ function applyRolePermissions() {
     if (statsNav) statsNav.style.display = canAccessStats() ? 'flex' : 'none';
     if (configNav) configNav.style.display = canAccessConfig() ? 'flex' : 'none';
     if (asignacionNav) asignacionNav.style.display = canAccessAsignacion() ? 'flex' : 'none';
+    const controlNav = document.getElementById('nav-control');
+    if (controlNav) controlNav.style.display = canAccessControl() ? 'flex' : 'none';
     if (desmontadorNav) desmontadorNav.style.display = canAccessDesmontador() ? 'flex' : 'none';
     if (dashboardNewOrderBtn) dashboardNewOrderBtn.style.display = canCreateOrders() ? '' : 'none';
     if (quickActionCard) quickActionCard.style.display = canCreateOrders() ? '' : 'none';
@@ -462,6 +471,10 @@ function navigateTo(pageId) {
     }
     if (pageId === 'asignacion' && !canAccessAsignacion()) {
         showToast('No tienes permisos para acceder a asignación.', 'error');
+        return;
+    }
+    if (pageId === 'control' && !canAccessControl()) {
+        showToast('No tienes permisos para acceder al control de pedidos.', 'error');
         return;
     }
     if (pageId === 'desmontador' && !canAccessDesmontador()) {
@@ -495,6 +508,7 @@ function navigateTo(pageId) {
     else if (pageId === 'config') loadConfig();
     else if (pageId === 'new-order') resetOrderForm();
     else if (pageId === 'asignacion') loadAsignacion();
+    else if (pageId === 'control') loadControl();
     else if (pageId === 'desmontador') loadDesmontador();
 }
 
@@ -631,25 +645,28 @@ function loadHistory(sucursalFilter = '', clienteFilter = '', searchFilter = '')
         tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No se encontraron pedidos</td></tr>';
         return;
     }
-    tbody.innerHTML = orders.map(o => `
-    <tr onclick="openOrderModal('${o.id}')">
+    tbody.innerHTML = orders.map(o => {
+        const cdnClass = isCDN(o) ? ' cdn-order' : '';
+        const cdnBadge = isCDN(o) ? '<span class="cdn-badge" title="Pedido CDN">CDN</span> ' : '';
+        return `
+    <tr class="${cdnClass}" onclick="openOrderModal('${o.id}')">
       <td style="text-align:center;padding:6px">
         ${o.photo
             ? `<img src="${o.photo}" onclick="event.stopPropagation();openPhotoModal('${o.photo}')" style="width:36px;height:36px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--slate-200)" title="Ver foto" />`
-            : `<span style="color:var(--slate-300);font-size:1rem">—</span>`}
+            : `<span style="color:var(--slate-300);font-size:1rem">&mdash;</span>`}
       </td>
-      <td><strong>${o.vehicleNumber || '—'}</strong></td>
-      <td>${o.partNumbers && o.partNumbers.length ? o.partNumbers.join(', ') : '—'}</td>
-      <td class="truncate" style="max-width:200px">${truncate(o.description || '—', 45)}</td>
+      <td><strong>${cdnBadge}${o.vehicleNumber || '&mdash;'}</strong></td>
+      <td>${o.partNumbers && o.partNumbers.length ? o.partNumbers.join(', ') : '&mdash;'}</td>
+      <td class="truncate" style="max-width:200px">${truncate(o.description || '&mdash;', 45)}</td>
       <td><span class="badge badge-blue">${o.sucursal}</span></td>
       <td><span class="badge ${o.cliente === 'Talleres' ? 'badge-purple' : 'badge-orange'}">${o.cliente}</span></td>
-      <td>${o.userName || o.userEmail || '—'}</td>
+      <td>${o.userName || o.userEmail || '&mdash;'}</td>
       <td>${formatDateTime(o.createdAt)}</td>
       <td>${workflowStatusBadge(o.workflowStatus || 'pendiente')}</td>
-      <td>${o.tiempoTotal != null ? o.tiempoTotal + ' min' : '—'}</td>
+      <td>${o.tiempoTotal != null ? o.tiempoTotal + ' min' : '&mdash;'}</td>
       <td class="truncate" style="max-width:150px" title="${escHtml(o.observations || '')}">${o.observations ? escHtml(o.observations) : '-'}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+    }).join('');
 }
 
 // =====================================================
@@ -1487,21 +1504,23 @@ function loadAsignacion() {
         const ws = o.workflowStatus || 'pendiente';
         const canAssign = ws === 'pendiente' || ws === 'asignado';
         const btnLabel = ws === 'asignado' ? 'Reasignar' : 'Asignar';
+        const cdnClass = isCDN(o) ? ' cdn-order' : '';
+        const cdnBadge = isCDN(o) ? '<span class="cdn-badge">CDN</span> ' : '';
         return `
-        <tr>
+        <tr class="${cdnClass}">
           <td style="text-align:center;padding:6px">
             ${o.photo
                 ? `<img src="${o.photo}" onclick="event.stopPropagation();openPhotoModal('${o.photo}')" style="width:36px;height:36px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--slate-200)" title="Ver foto" />`
                 : `<span style="color:var(--slate-300)">&mdash;</span>`}
           </td>
-          <td><strong>${o.vehicleNumber || '\u2014'}</strong></td>
+          <td><strong>${cdnBadge}${o.vehicleNumber || '&mdash;'}</strong></td>
           <td class="truncate" style="max-width:160px">${truncate(o.description || o.rawText, 35)}</td>
           <td><span class="badge badge-blue">${o.sucursal}</span></td>
           <td><span class="badge ${o.cliente === 'Talleres' ? 'badge-purple' : 'badge-orange'}">${o.cliente}</span></td>
-          <td><small>${o.userName || o.userEmail || '\u2014'}</small></td>
+          <td><small>${o.userName || o.userEmail || '&mdash;'}</small></td>
           <td>${workflowStatusBadge(ws)}</td>
           <td>
-            <small>${o.assignedToName || '\u2014'}</small>
+            <small>${o.assignedToName || '&mdash;'}</small>
             ${o.tiempoTotal != null ? `<br><small style="color:var(--slate-500)">${o.tiempoTotal} min</small>` : ''}
           </td>
           <td>
@@ -1853,7 +1872,172 @@ function formatDate(iso) {
 }
 function formatDateTime(iso) {
     if (!iso) return '—';
-    return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// =====================================================
+// 14b. CONTROL DE PEDIDOS
+// =====================================================
+function loadControl() {
+    const orders = DB.getOrders();
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // KPIs
+    const pending = orders.filter(o => o.workflowStatus === 'pendiente').length;
+    const assigned = orders.filter(o => o.workflowStatus === 'asignado').length;
+    const sacadasHoy = orders.filter(o => o.result === 'si' && o.completedAt && new Date(o.completedAt) >= startOfDay).length;
+    const today = orders.filter(o => new Date(o.createdAt) >= startOfDay).length;
+
+    setEl('ctrl-kpi-pending', pending);
+    setEl('ctrl-kpi-assigned', assigned);
+    setEl('ctrl-kpi-sacadas', sacadasHoy);
+    setEl('ctrl-kpi-today', today);
+
+    // Pendientes por sucursal
+    const sucursales = ['Tabares', 'Orotava', 'S/C', 'Icod', 'Granadilla', 'Islas'];
+    const branchPending = {};
+    orders.filter(o => o.workflowStatus === 'pendiente').forEach(o => {
+        branchPending[o.sucursal] = (branchPending[o.sucursal] || 0) + 1;
+    });
+    const branchContainer = document.getElementById('ctrl-branch-list');
+    if (branchContainer) {
+        branchContainer.innerHTML = sucursales.map(s => {
+            const count = branchPending[s] || 0;
+            const color = count > 10 ? 'var(--red-500)' : count > 5 ? 'var(--orange-500)' : 'var(--brand-600)';
+            return `<div class="ctrl-branch-card">
+                <span class="ctrl-branch-count" style="color:${color}">${count}</span>
+                <span class="ctrl-branch-name">${s}</span>
+            </div>`;
+        }).join('');
+    }
+
+    // Tiempo hace 12 horas
+    const twelveHoursAgo = new Date(now.getTime() - (12 * 60 * 60 * 1000));
+
+    // Estado desmontadores
+    const users = DB.getUsers().filter(u => u.role === 'desmontador' && u.active);
+    const dsmStats = {};
+    users.forEach(u => {
+        dsmStats[u.email] = { name: u.name, pending: 0, sacados: 0, noSacados: 0, enProceso: false, pendingOrders: [] };
+    });
+    
+    orders.forEach(o => {
+        if (!o.assignedTo || !dsmStats[o.assignedTo]) return;
+        
+        if (o.workflowStatus === 'asignado') { 
+            dsmStats[o.assignedTo].pending++; 
+            dsmStats[o.assignedTo].enProceso = true; 
+            dsmStats[o.assignedTo].pendingOrders.push(o);
+        }
+        
+        // Solo contar los completados en las últimas 12 horas
+        if (o.completedAt) {
+            const completedTime = new Date(o.completedAt);
+            if (completedTime >= twelveHoursAgo) {
+                if (o.result === 'si') dsmStats[o.assignedTo].sacados++;
+                if (o.result && o.result !== 'si') dsmStats[o.assignedTo].noSacados++;
+            }
+        }
+    });
+    
+    const dsmBody = document.getElementById('ctrl-dismantlers-body');
+    if (dsmBody) {
+        const dsmList = Object.entries(dsmStats).map(([email, stats]) => ({ email, ...stats }));
+        if (dsmList.length === 0) {
+            dsmBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--slate-400)">No hay desmontadores registrados</td></tr>';
+        } else {
+            dsmBody.innerHTML = dsmList.map(d => {
+                const hasPending = d.pendingOrders.length > 0;
+                
+                let pendingHtml = '';
+                if (hasPending) {
+                    pendingHtml = `
+                    <tr id="pending-row-${d.email.replace(/[@.]/g, '-')}" class="pending-subrow" style="display:none; background-color: var(--slate-50);">
+                        <td colspan="6" style="padding: 12px 16px;">
+                            <div style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 8px; font-weight: 600;">Pedidos en proceso:</div>
+                            <div style="display:flex; flex-direction: column; gap: 6px;">
+                                ${d.pendingOrders.map(po => `
+                                    <div style="display:flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border: 1px solid var(--slate-200); border-radius: 4px;">
+                                        <div>
+                                            <strong style="color:var(--brand-700)">${po.vehicleNumber || '—'}</strong>
+                                            <span style="color:var(--slate-500); margin-left: 6px;">${truncate(po.description || po.rawText, 40)}</span>
+                                        </div>
+                                        <div style="display:flex; gap:8px;">
+                                            <span class="badge badge-blue">${po.sucursal}</span>
+                                            <span style="color:var(--slate-400); font-size: 0.8rem;">${po.assignedAt ? formatDateTime(po.assignedAt) : '—'}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }
+                
+                return `
+                <tr ${hasPending ? `style="cursor:pointer;" onclick="toggleDismantlerPending('${d.email.replace(/[@.]/g, '-')}')"` : ''}>
+                    <td style="text-align:center; width: 40px; color: var(--slate-400);">
+                        ${hasPending ? `<svg id="icon-${d.email.replace(/[@.]/g, '-')}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;"><polyline points="9 18 15 12 9 6"></polyline></svg>` : ''}
+                    </td>
+                    <td><strong>${d.name}</strong></td>
+                    <td style="text-align:center">${d.pending > 0 ? `<span class="badge badge-orange">${d.pending}</span>` : '<span style="color:var(--slate-300)">0</span>'}</td>
+                    <td style="text-align:center">${d.sacados > 0 ? `<span class="badge badge-green">${d.sacados}</span>` : '<span style="color:var(--slate-300)">0</span>'}</td>
+                    <td style="text-align:center">${d.noSacados > 0 ? `<span class="badge badge-red">${d.noSacados}</span>` : '<span style="color:var(--slate-300)">0</span>'}</td>
+                    <td style="text-align:center">${d.enProceso ? '<span class="badge badge-blue">Activo</span>' : '<span style="color:var(--slate-400);font-size:0.8rem">Libre</span>'}</td>
+                </tr>
+                ${pendingHtml}
+                `;
+            }).join('');
+        }
+    }
+
+    // Actividad reciente (solo últimas 12 horas)
+    const recentActivity = [];
+    orders.forEach(o => {
+        if (o.assignedAt && new Date(o.assignedAt) >= twelveHoursAgo) {
+            recentActivity.push({ time: o.assignedAt, text: `Pedido ${o.vehicleNumber || o.id.slice(-6)} asignado a ${o.assignedToName || '—'}`, type: 'assign' });
+        }
+        if (o.completedAt && new Date(o.completedAt) >= twelveHoursAgo) {
+            recentActivity.push({ time: o.completedAt, text: `Pedido ${o.vehicleNumber || o.id.slice(-6)} completado (${o.result === 'si' ? 'Sacado' : 'No sacado'})`, type: o.result === 'si' ? 'done' : 'fail' });
+        }
+    });
+    recentActivity.sort((a, b) => new Date(b.time) - new Date(a.time));
+    const top20 = recentActivity.slice(0, 20);
+
+    const feedEl = document.getElementById('ctrl-activity-feed');
+    if (feedEl) {
+        if (top20.length === 0) {
+            feedEl.innerHTML = '<p style="color:var(--slate-400);text-align:center;padding:20px">Sin actividad en las últimas 12 horas</p>';
+        } else {
+            const iconMap = { 
+                assign: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue-500)" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>', 
+                done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green-500)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>', 
+                fail: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--red-500)" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' 
+            };
+            feedEl.innerHTML = top20.map(a => `
+            <div class="activity-item">
+                <span class="activity-icon" style="display:flex;align-items:center;justify-content:center;background:var(--slate-50);width:28px;height:28px;border-radius:50%;border:1px solid var(--slate-200);">${iconMap[a.type]}</span>
+                <span class="activity-text">${a.text}</span>
+                <span class="activity-time">${formatDateTime(a.time)}</span>
+            </div>`).join('');
+        }
+    }
+}
+
+function toggleDismantlerPending(emailId) {
+    const row = document.getElementById(`pending-row-${emailId}`);
+    const icon = document.getElementById(`icon-${emailId}`);
+    
+    if (row && icon) {
+        if (row.style.display === 'none') {
+            row.style.display = 'table-row';
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            row.style.display = 'none';
+            icon.style.transform = 'rotate(0)';
+        }
+    }
 }
 
 // =====================================================
@@ -1865,6 +2049,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init auth
     initAuth();
+
+    // ---- MOBILE SIDEBAR ----
+    document.getElementById('menu-open-btn')?.addEventListener('click', openMobileSidebar);
+    document.getElementById('sidebar-toggle')?.addEventListener('click', closeMobileSidebar);
+    document.getElementById('sidebar-overlay')?.addEventListener('click', closeMobileSidebar);
 
     // ---- LOGIN ----
     document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -1908,11 +2097,6 @@ document.addEventListener('DOMContentLoaded', () => {
             navigateTo(item.dataset.page);
         });
     });
-
-    // ---- MOBILE SIDEBAR ----
-    document.getElementById('menu-open-btn').addEventListener('click', openMobileSidebar);
-    document.getElementById('sidebar-toggle').addEventListener('click', closeMobileSidebar);
-    document.getElementById('sidebar-overlay').addEventListener('click', closeMobileSidebar);
 
     // ---- ORDER FORM ----
     document.getElementById('order-text').addEventListener('input', (e) => {

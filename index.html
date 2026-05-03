@@ -164,6 +164,15 @@
                     </svg>
                     <span>Asignación</span>
                 </a>
+                <!-- Control Pedidos: visible para admin, encargado, asignador -->
+                <a href="#" class="nav-item" data-page="control" id="nav-control" style="display:none">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M3 9h18"/>
+                        <path d="M9 21V9"/>
+                    </svg>
+                    <span>Control pedidos</span>
+                </a>
                 <!-- Desmontador: visible solo para rol desmontador -->
                 <a href="#" class="nav-item" data-page="desmontador" id="nav-desmontador" style="display:none">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -849,7 +858,7 @@
             <div id="page-asignacion" class="content-page">
                 <div class="page-header">
                     <div>
-                        <h1 class="page-title">Asignaci\u00f3n de pedidos</h1>
+                        <h1 class="page-title">Asignación de pedidos</h1>
                         <p class="page-subtitle">Asigna pedidos a los desmontadores</p>
                     </div>
                 </div>
@@ -858,14 +867,14 @@
                         <thead>
                             <tr>
                                 <th style="width:50px;text-align:center">Foto</th>
-                                <th>N\u00ba Veh\u00edculo</th>
-                                <th>Descripci\u00f3n</th>
+                                <th>Nº Vehículo</th>
+                                <th>Descripción</th>
                                 <th>Sucursal</th>
                                 <th>Cliente</th>
                                 <th>Creado por</th>
                                 <th>Estado</th>
                                 <th>Asignado a</th>
-                                <th>Acci\u00f3n</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="asignacion-body">
@@ -932,17 +941,114 @@
                         <thead>
                             <tr>
                                 <th style="width:50px;text-align:center">Foto</th>
-                                <th>N\u00ba Veh\u00edculo</th>
-                                <th>Descripci\u00f3n</th>
+                                <th>Nº Vehículo</th>
+                                <th>Descripción</th>
                                 <th>Sucursal</th>
                                 <th>Resultado</th>
                                 <th>Fecha</th>
                             </tr>
                         </thead>
                         <tbody id="dsm-history-body">
-                            <tr class="empty-row"><td colspan="6">Sin historial a\u00fan</td></tr>
+                            <tr class="empty-row"><td colspan="6">Sin historial aún</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- ============ CONTROL PEDIDOS PAGE ============ -->
+            <div id="page-control" class="content-page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Control de pedidos</h1>
+                        <p class="page-subtitle">Visión operativa en tiempo real de toda la actividad</p>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="loadControl()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        Actualizar
+                    </button>
+                </div>
+
+                <!-- KPI resumen -->
+                <div class="kpi-grid" style="margin-bottom:28px">
+                    <div class="kpi-card">
+                        <div class="kpi-icon orange">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="ctrl-kpi-pending">0</span>
+                            <span class="kpi-label">Sin asignar</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon blue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="ctrl-kpi-assigned">0</span>
+                            <span class="kpi-label">En proceso</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon green">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="ctrl-kpi-sacadas">0</span>
+                            <span class="kpi-label">Sacadas hoy</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon purple">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-value" id="ctrl-kpi-today">0</span>
+                            <span class="kpi-label">Pedidos hoy</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-grid">
+                    <!-- Pendientes por sucursal -->
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--slate-400)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                            <h3 class="chart-title" style="margin-bottom:0">Pendientes por sucursal</h3>
+                        </div>
+                        <div id="ctrl-branch-list" class="ctrl-branch-grid"></div>
+                    </div>
+
+                    <!-- Estado desmontadores -->
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--slate-400)"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                            <h3 class="chart-title" style="margin-bottom:0">Estado de desmontadores</h3>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Desmontador</th>
+                                        <th style="text-align:center">Pendientes</th>
+                                        <th style="text-align:center">Sacados (12h)</th>
+                                        <th style="text-align:center">No sacados (12h)</th>
+                                        <th style="text-align:center">Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ctrl-dismantlers-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actividad reciente -->
+                <div class="card mt-6">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--slate-400)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        <h3 class="chart-title" style="margin-bottom:0">Actividad reciente (12h)</h3>
+                    </div>
+                    <div id="ctrl-activity-feed" class="activity-feed"></div>
                 </div>
             </div>
 
